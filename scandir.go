@@ -27,6 +27,7 @@ type fileInfos struct {
 	Type     string
 	Path     string
 	Size     int64
+	NBItems  int
 	Items    item
 }
 
@@ -67,6 +68,8 @@ func simpleList(prefix string, root string, base string) item {
 		}
 		if f.IsDir() {
 			tmp.Type = "folder"
+			tmpfiles, _ := ioutil.ReadDir(fmt.Sprintf("%s%s", prefix, root))
+			tmp.NBItems = len(tmpfiles)
 			// tmp.Items = simpleList(prefix, fmt.Sprintf("%s/%s", root, f.Name()), fmt.Sprintf("%s/%s", base, f.Name()))
 		} else {
 			tmp.Type = "file"
@@ -82,12 +85,14 @@ func Start(prefix string, root string) []byte {
 	clog.Info("ScanDir", "Start", "Prefix: %s, Dir: %s", prefix, root)
 	base := filepath.Base(root)
 
+	list := simpleList(prefix, root, base)
 	rootFiles := fileInfos{
 		FileName: base,
 		Name:     base,
 		Path:     root,
 		Type:     "folder",
-		Items:    simpleList(prefix, root, base),
+		Items:    list,
+		NBItems:  len(list),
 	}
 
 	// json, _ := json.MarshalIndent(rootFiles, "", "    ")
