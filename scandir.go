@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/Djoulzy/Tools/clog"
 )
@@ -31,6 +32,8 @@ type fileInfos struct {
 	FileName string
 	Name     string
 	Type     string
+	Ext      string
+	Year     string
 	Path     string
 	Size     int64
 	NBItems  int
@@ -51,37 +54,59 @@ func fullList(root string) {
 	fmt.Printf("filepath.Walk() returned %v\n", err)
 }
 
-func MakePrettyName(UglyName string) string {
-	// var res = it.replaceAll("_", " ")
-	regex1 := regexp.MustCompile(`(?iU)^(.+?)[.( \t]*(19\d{2}|20(?:0\d|1[0-9])).*(\d+p).*(bluray|brrip|webrip|hdlight|dvdrip|web-dl|hdrip).*[.](mkv|avi|mpe?g|mp4)$`)
-	// var regex2 = regexp.MustCompile(`^(.+?)(bluray|brrip|webrip|hdlight|dvdrip|web-dl|hdrip)(?:.+?)$`)
-	// var regex3 = regexp.MustCompile(`^(.+?)(?:[^\d](\d+p)[^p])(?:.*?)$`)
-	// var regex4 = regexp.MustCompile(`^(?:.+?)(multi|vf(?:\w*)|(?:\w*)french)(?:.+?)$`)
+func MakePrettyName(UglyName string) map[string]string {
+	regex := regexp.MustCompile(`(?iU)^(.+?)[.( \t](?:19\d{2}|20(?:0\d|1[0-9])).*[.](mkv|avi|mpe?g|mp4)$`)
+	// regex := regexp.MustCompile(`(?iU)^(.+?)[.( \t]*((19\d{2}|20(?:0\d|1[0-9])).*|(?:(?=\d+p|bluray|brrip|webrip|hdlight|dvdrip|web-dl|hdrip)..*)?[.](mkv|avi|mpe?g|mp4)$)`)
+	infosBase := regex.FindStringSubmatch(UglyName)
+	regex = regexp.MustCompile(`(?iU)^(?:.+?)(19\d{2}|20(?:0\d|1[0-9]))(?:.+?)$`)
+	year := regex.FindStringSubmatch(UglyName)
+	regex = regexp.MustCompile(`(?iU)^(?:.+?)(bluray|brrip|webrip|hdlight|dvdrip|web-dl|hdrip)(?:.+?)$`)
+	origine := regex.FindStringSubmatch(UglyName)
+	regex = regexp.MustCompile(`(?iU)^(?:.+?)(?:[^\d](\d+p)[^p])(?:.*?)$`)
+	qualite := regex.FindStringSubmatch(UglyName)
+	regex = regexp.MustCompile(`(?iU)^(?:.+?)(multi|vf(?:\w*)|(?:\w*)french)(?:.+?)$`)
+	langue := regex.FindStringSubmatch(UglyName)
 
-	clog.Trace("", "", "%q", regex1.FindStringSubmatch(UglyName))
-	//
-	//    var out = new Array(5);
-	//
-	//    if ( m = regex.exec(res) ) {
-	// 	   out[0] = titlelize(m[1]) || '-'; // Title
-	// 	   out[1] = m[3] || '-';	// Year
-	// 	   tmp = m[2].replaceAll("\\.", " ");
-	// 	//    tmp = tmp.replaceAll("-", " ");
-	// 	   if ( n = regex2.exec(tmp) ) {
-	// 		   out[2] = n[2] || '-'; // Origine
-	// 		   if ( o = regex3.exec(n[1]) ) {
-	// 			   out[3] = o[2] || '-'; // Qualite
-	// 		   }
-	// 	   }
-	// 	   if ( p = regex4.exec(tmp) ) out[4] = p[1] || '-'; // Langue
-	// 	   else out[4] = '-';
-	//    } else {
-	// 	   out[0] = '<font color="red">No match</font>';
-	//    }
-	//    //the replace is an hack to remove html in live input text
-	// //    return (html) ? out : out.replace(/<[^>]+>|&[^;]+;/g,'');
-	// return out;
-	return ""
+	results := make(map[string]string)
+
+	results["titre"] = infosBase[1]
+	results["ext"] = infosBase[2]
+	if len(year) == 2 {
+		results["year"] = origine[1]
+	}
+	if len(origine) == 2 {
+		results["origine"] = origine[1]
+	}
+	if len(qualite) == 2 {
+		results["qualite"] = qualite[1]
+	}
+	if len(langue) == 2 {
+		results["langue"] = langue[1]
+	}
+
+	NBsep := strings.Count(UglyName, " ")
+	sep := " "
+	tmp := strings.Count(UglyName, ".")
+	if tmp > NBsep {
+		NBsep = tmp
+		sep = "."
+	}
+	tmp = strings.Count(UglyName, "_")
+	if tmp > NBsep {
+		NBsep = tmp
+		sep = "_"
+	}
+	tmp = strings.Count(UglyName, "-")
+	if tmp > NBsep {
+		NBsep = tmp
+		sep = "-"
+	}
+	if sep != " " {
+		results["titre"] = strings.Replace(results["titre"], sep, " ", -1)
+	}
+
+	clog.Trace("", "", "%s", results)
+	return results
 }
 
 func simpleList(prefix string, root string, base string) item {
@@ -109,9 +134,12 @@ func simpleList(prefix string, root string, base string) item {
 			tmp.NBItems = len(tmpfiles)
 			// tmp.Items = simpleList(prefix, fmt.Sprintf("%s/%s", root, f.Name()), fmt.Sprintf("%s/%s", base, f.Name()))
 		} else {
-			// infos := MakePrettyName(f.Name())
-			tmp.Name = tmp.FileName
+			clog.Trace("", "", "%s", f.Name())
+			infos := MakePrettyName(f.Name())
+			tmp.Name = infos["titre"]
 			tmp.Type = "file"
+			tmp.Ext = infos["ext"]
+			tmp.Year = infos["year"]
 			tmp.Size = f.Size()
 		}
 		zeFilez[index] = tmp
