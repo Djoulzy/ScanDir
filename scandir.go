@@ -1,13 +1,14 @@
-package main
+package ScanDir
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/Djoulzy/Tools/clog"
 )
 
 type item map[int]fileInfos
@@ -47,8 +48,8 @@ func MakePrettyName(UglyName string) string {
 	return UglyName
 }
 
-func simpleList(root string, base string) item {
-	files, err := ioutil.ReadDir(root)
+func simpleList(prefix string, root string, base string) item {
+	files, err := ioutil.ReadDir(fmt.Sprintf("%s%s", prefix, root))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -61,11 +62,12 @@ func simpleList(root string, base string) item {
 		tmp := fileInfos{
 			FileName: f.Name(),
 			Name:     MakePrettyName(f.Name()),
-			Path:     fmt.Sprintf("%s/%s", base, f.Name()),
+			Path:     fmt.Sprintf("%s/%s", root, f.Name()),
+			// Path: root,
 		}
 		if f.IsDir() {
 			tmp.Type = "folder"
-			tmp.Items = simpleList(fmt.Sprintf("%s/%s", root, f.Name()), fmt.Sprintf("%s/%s", base, f.Name()))
+			// tmp.Items = simpleList(prefix, fmt.Sprintf("%s/%s", root, f.Name()), fmt.Sprintf("%s/%s", base, f.Name()))
 		} else {
 			tmp.Type = "file"
 			tmp.Size = f.Size()
@@ -76,19 +78,19 @@ func simpleList(root string, base string) item {
 	return zeFilez
 }
 
-func main() {
-	flag.Parse()
-	root := flag.Arg(0)
+func Start(prefix string, root string) []byte {
+	clog.Info("ScanDir", "Start", "Prefix: %s, Dir: %s", prefix, root)
 	base := filepath.Base(root)
 
 	rootFiles := fileInfos{
 		FileName: base,
 		Name:     base,
-		Path:     base,
+		Path:     root,
 		Type:     "folder",
-		Items:    simpleList(root, base),
+		Items:    simpleList(prefix, root, base),
 	}
 
-	json, _ := json.MarshalIndent(rootFiles, "", "    ")
-	fmt.Printf("%s", json)
+	// json, _ := json.MarshalIndent(rootFiles, "", "    ")
+	json, _ := json.Marshal(rootFiles)
+	return json
 }
