@@ -164,18 +164,32 @@ func MakePrettyName(UglyName string) map[string]string {
 	return results
 }
 
-func simpleList(prefix string, root string, base string) items {
+func simpleList(prefix string, root string, base string, pagenum int, nbperpage int) (items, int) {
+	var stop int
+	var totalFiles int
+
 	theDir := fmt.Sprintf("%s%s", prefix, root)
 	files, err := ioutil.ReadDir(theDir)
 	if err != nil {
 		log.Fatal(err)
 	}
 	stat, _ := os.Stat(theDir)
+	totalFiles = len(files)
 
-	zeFilez := make(items, len(files))
-	for index, f := range files {
+	var zeFilez items
+
+	index := nbperpage * (pagenum - 1)
+	if index+nbperpage > totalFiles {
+		stop = totalFiles
+	} else {
+		stop = index + nbperpage
+	}
+	for index < stop {
+		// for _, f := range files {
+		f := files[index]
+		index++
 		fileName := f.Name()
-		if filepath.HasPrefix(fileName, ".") || filepath.HasPrefix(fileName, "@") || filepath.HasPrefix(fileName, "thumbs") {
+		if filepath.HasPrefix(fileName, ".") || filepath.HasPrefix(fileName, "@") || filepath.HasPrefix(fileName, "_") || filepath.HasPrefix(fileName, "thumbs") {
 			continue
 		}
 
@@ -185,7 +199,6 @@ func simpleList(prefix string, root string, base string) items {
 			FileName: fileName,
 			Path:     fmt.Sprintf("%s/%s", root, fileName),
 			ModTime:  modTime,
-			// Path: root,
 		}
 		if f.IsDir() {
 			tmp.Type = "folder"
@@ -205,16 +218,16 @@ func simpleList(prefix string, root string, base string) items {
 			tmp.Qualite = infos["qualite"]
 			tmp.Size = f.Size()
 		}
-		zeFilez[index] = tmp
+		zeFilez = append(zeFilez, tmp)
 	}
-	return zeFilez
+	return zeFilez, totalFiles
 }
 
 func Start(appConf DataSource, root string, orderby string, asc bool) []byte {
 	clog.Info("ScanDir", "Start", "Prefix: %s, Dir: %s, OrderBy: %s (ASC:%b)", appConf.GetPrefixDir(), root, orderby, asc)
 	base := filepath.Base(root)
 
-	list := simpleList(appConf.GetPrefixDir(), root, base)
+	list, total := simpleList(appConf.GetPrefixDir(), root, base, 1, 10)
 
 	switch orderby {
 	case "title":
@@ -243,7 +256,7 @@ func Start(appConf DataSource, root string, orderby string, asc bool) []byte {
 		Path:     root,
 		Type:     "folder",
 		Items:    list,
-		NBItems:  len(list),
+		NBItems:  total,
 	}
 
 	// json, _ := json.MarshalIndent(rootFiles, "", "    ")
