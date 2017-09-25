@@ -8,7 +8,10 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Djoulzy/Tools/clog"
 )
@@ -18,9 +21,9 @@ type DataSource interface {
 	GetCacheDir() string
 }
 
-type item map[int]fileInfos
+type items []fileInfos
 
-func (i item) String() string {
+func (i items) String() string {
 	var ret string
 	for _, f := range i {
 		ret = fmt.Sprintf("%s%s", ret, f)
@@ -39,13 +42,56 @@ type fileInfos struct {
 	Origine  string
 	Qualite  string
 	Size     int64
+	ModTime  time.Time
 	NBItems  int
-	Items    item
+	Items    items
 }
 
 func (f fileInfos) String() string {
 	return fmt.Sprintf("%s [%s]: %s Size: %d items: %s\n", f.Name, f.FileName, f.Type, f.Size, f.Items)
 }
+
+//////////////////////////////////////// SORT //////////////////////////////////
+
+type ByTitle items
+
+func (s ByTitle) Len() int {
+	return len(s)
+}
+func (s ByTitle) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+func (s ByTitle) Less(i, j int) bool {
+	return []byte(s[i].Name)[0] < []byte(s[j].Name)[0]
+}
+
+type ByDate items
+
+func (s ByDate) Len() int {
+	return len(s)
+}
+func (s ByDate) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+func (s ByDate) Less(i, j int) bool {
+	return s[i].ModTime.Before(s[j].ModTime)
+}
+
+type ByYear items
+
+func (s ByYear) Len() int {
+	return len(s)
+}
+func (s ByYear) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+func (s ByYear) Less(i, j int) bool {
+	yi, _ := strconv.Atoi(s[i].Year)
+	yj, _ := strconv.Atoi(s[j].Year)
+	return yi < yj
+}
+
+////////////////////////////////////////////////////////////////////////////////
 
 func visit(path string, f os.FileInfo, err error) error {
 	fmt.Printf("Visited: %s\n", path)
@@ -113,39 +159,43 @@ func MakePrettyName(UglyName string) map[string]string {
 	if sep != " " {
 		results["titre"] = strings.Replace(results["titre"], sep, " ", -1)
 	}
-
 	results["titre"] = strings.Trim(results["titre"], " ")
-	clog.Trace("", "", "%s", results)
+
 	return results
 }
 
-func simpleList(prefix string, root string, base string) item {
+func simpleList(prefix string, root string, base string) items {
 	theDir := fmt.Sprintf("%s%s", prefix, root)
 	files, err := ioutil.ReadDir(theDir)
 	if err != nil {
 		log.Fatal(err)
 	}
 	stat, _ := os.Stat(theDir)
-	clog.Trace("", "", "%s", stat.ModTime())
-	zeFilez := make(item)
+
+	zeFilez := make(items, len(files))
 	for index, f := range files {
-		if filepath.HasPrefix(f.Name(), ".") || filepath.HasPrefix(f.Name(), "@") || filepath.HasPrefix(f.Name(), "thumbs") {
+		fileName := f.Name()
+		if filepath.HasPrefix(fileName, ".") || filepath.HasPrefix(fileName, "@") || filepath.HasPrefix(fileName, "thumbs") {
 			continue
 		}
+
+		stat, _ = os.Stat(fmt.Sprintf("%s/%s", theDir, fileName))
+		modTime := stat.ModTime()
 		tmp := fileInfos{
-			FileName: f.Name(),
-			Path:     fmt.Sprintf("%s/%s", root, f.Name()),
+			FileName: fileName,
+			Path:     fmt.Sprintf("%s/%s", root, fileName),
+			ModTime:  modTime,
 			// Path: root,
 		}
 		if f.IsDir() {
 			tmp.Type = "folder"
 			tmp.Name = tmp.FileName
-			tmpfiles, _ := ioutil.ReadDir(fmt.Sprintf("%s/%s", theDir, f.Name()))
+			tmpfiles, _ := ioutil.ReadDir(fmt.Sprintf("%s/%s", theDir, fileName))
 			tmp.NBItems = len(tmpfiles)
 			// tmp.Items = simpleList(prefix, fmt.Sprintf("%s/%s", root, f.Name()), fmt.Sprintf("%s/%s", base, f.Name()))
 		} else {
-			clog.Trace("", "", "%s", f.Name())
-			infos := MakePrettyName(f.Name())
+			clog.Trace("", "", "%s", fileName)
+			infos := MakePrettyName(fileName)
 			tmp.Name = infos["titre"]
 			tmp.Type = "file"
 			tmp.Ext = infos["ext"]
@@ -157,15 +207,36 @@ func simpleList(prefix string, root string, base string) item {
 		}
 		zeFilez[index] = tmp
 	}
-
 	return zeFilez
 }
 
-func Start(appConf DataSource, root string) []byte {
-	clog.Info("ScanDir", "Start", "Prefix: %s, Dir: %s", appConf.GetPrefixDir(), root)
+func Start(appConf DataSource, root string, orderby string, asc bool) []byte {
+	clog.Info("ScanDir", "Start", "Prefix: %s, Dir: %s, OrderBy: %s (ASC:%b)", appConf.GetPrefixDir(), root, orderby, asc)
 	base := filepath.Base(root)
 
 	list := simpleList(appConf.GetPrefixDir(), root, base)
+
+	switch orderby {
+	case "title":
+		if asc {
+			sort.Sort(ByTitle(list))
+		} else {
+			sort.Sort(sort.Reverse(ByTitle(list)))
+		}
+	case "date":
+		if asc {
+			sort.Sort(ByDate(list))
+		} else {
+			sort.Sort(sort.Reverse(ByDate(list)))
+		}
+	case "year":
+		if asc {
+			sort.Sort(ByYear(list))
+		} else {
+			sort.Sort(sort.Reverse(ByYear(list)))
+		}
+	}
+
 	rootFiles := fileInfos{
 		FileName: base,
 		Name:     base,
