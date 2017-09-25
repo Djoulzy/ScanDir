@@ -30,11 +30,14 @@ func (i item) String() string {
 
 type fileInfos struct {
 	FileName string
+	Path     string
 	Name     string
 	Type     string
 	Ext      string
 	Year     string
-	Path     string
+	Langues  string
+	Origine  string
+	Qualite  string
 	Size     int64
 	NBItems  int
 	Items    item
@@ -69,10 +72,16 @@ func MakePrettyName(UglyName string) map[string]string {
 
 	results := make(map[string]string)
 
-	results["titre"] = infosBase[1]
-	results["ext"] = infosBase[2]
+	if len(infosBase) > 2 {
+		results["titre"] = infosBase[1]
+		results["ext"] = infosBase[2]
+	} else {
+		infosBase := strings.Split(UglyName, ".")
+		results["titre"] = infosBase[0]
+		results["ext"] = infosBase[1]
+	}
 	if len(year) == 2 {
-		results["year"] = origine[1]
+		results["year"] = year[1]
 	}
 	if len(origine) == 2 {
 		results["origine"] = origine[1]
@@ -105,6 +114,7 @@ func MakePrettyName(UglyName string) map[string]string {
 		results["titre"] = strings.Replace(results["titre"], sep, " ", -1)
 	}
 
+	results["titre"] = strings.Trim(results["titre"], " ")
 	clog.Trace("", "", "%s", results)
 	return results
 }
@@ -140,6 +150,9 @@ func simpleList(prefix string, root string, base string) item {
 			tmp.Type = "file"
 			tmp.Ext = infos["ext"]
 			tmp.Year = infos["year"]
+			tmp.Langues = infos["langue"]
+			tmp.Origine = infos["origine"]
+			tmp.Qualite = infos["qualite"]
 			tmp.Size = f.Size()
 		}
 		zeFilez[index] = tmp
