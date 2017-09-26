@@ -13,13 +13,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Djoulzy/MovieDB"
 	"github.com/Djoulzy/Tools/clog"
 )
 
 type DataSource interface {
+	GetHTTPAddr() string
 	GetPrefixDir() string
 	GetCacheDir() string
 }
+
+var globalConf DataSource
+var myDB *MovieDB.MDB
 
 type items []fileInfos
 
@@ -40,10 +45,13 @@ type pagination struct {
 
 type fileInfos struct {
 	FileName      string
+	TMDBID        int
 	Path          string
 	Name          string
 	Type          string
 	Ext           string
+	ImgSmall      string
+	ImgBig        string
 	Year          string
 	Langues       string
 	Origine       string
@@ -113,8 +121,23 @@ func fullList(root string) {
 	fmt.Printf("filepath.Walk() returned %v\n", err)
 }
 
-func MakePrettyName(UglyName string) map[string]string {
-	regex := regexp.MustCompile(`(?iU)^(.+?)[.( _\t](?:19\d{2}|20(?:0\d|1[0-9])).*[.](mkv|avi|mpe?g|mp4)$`)
+func MakePrettyName(UglyName string) (map[string]string, int) {
+	regex := regexp.MustCompile(`(?iU)^(.+?)_\((19\d{2}|20(?:0\d|1[0-9]))\)_(multi|vf(?:\w*)|(?:\w*)french)?_(\d+p)?_(bluray|brrip|webrip|hdlight|dvdrip|web-dl|hdrip)?_\[(\d+)?\]\.(mkv|avi|mpe?g|mp4)$`)
+	globalRule := regex.FindStringSubmatch(UglyName)
+
+	results := make(map[string]string)
+	if len(globalRule) == 8 {
+		results["titre"] = globalRule[1]
+		results["year"] = globalRule[2]
+		results["langue"] = globalRule[3]
+		results["qualite"] = globalRule[4]
+		results["origine"] = globalRule[5]
+		results["ext"] = globalRule[7]
+		id, _ := strconv.Atoi(globalRule[6])
+		return results, id
+	}
+
+	regex = regexp.MustCompile(`(?iU)^(.+?)[.( _\t](?:19\d{2}|20(?:0\d|1[0-9])).*[.](mkv|avi|mpe?g|mp4)$`)
 	// regex := regexp.MustCompile(`(?iU)^(.+?)[.( \t]*((19\d{2}|20(?:0\d|1[0-9])).*|(?:(?=\d+p|bluray|brrip|webrip|hdlight|dvdrip|web-dl|hdrip)..*)?[.](mkv|avi|mpe?g|mp4)$)`)
 	infosBase := regex.FindStringSubmatch(UglyName)
 	regex = regexp.MustCompile(`(?iU)^(?:.+?)(19\d{2}|20(?:0\d|1[0-9]))(?:.+?)$`)
@@ -125,8 +148,6 @@ func MakePrettyName(UglyName string) map[string]string {
 	qualite := regex.FindStringSubmatch(UglyName)
 	regex = regexp.MustCompile(`(?iU)^(?:.+?)(multi|vf(?:\w*)|(?:\w*)french)(?:.+?)$`)
 	langue := regex.FindStringSubmatch(UglyName)
-
-	results := make(map[string]string)
 
 	if len(infosBase) > 2 {
 		results["titre"] = infosBase[1]
@@ -171,7 +192,17 @@ func MakePrettyName(UglyName string) map[string]string {
 	}
 	results["titre"] = strings.Trim(results["titre"], " ")
 
-	return results
+	id, err := myDB.GetMovieID(results["titre"], results["year"])
+	if err != nil {
+		return nil, 0
+	}
+	return results, id
+}
+
+func renameFile(path string, from string, id int, with map[string]string) {
+	newFileName := fmt.Sprintf("%s_(%s)_%s_%s_%s_[%d].%s", with["titre"], with["year"], with["langue"], with["qualite"], with["origine"], id, with["ext"])
+	clog.Info("scandir", "renameFile", "FROM: %s TO: %s", from, newFileName)
+	os.Rename(fmt.Sprintf("%s%s", path, from), fmt.Sprintf("%s%s", path, newFileName))
 }
 
 func simpleList(prefix string, root string, base string, pagenum int, nbperpage int) (items, pagination) {
@@ -208,11 +239,7 @@ func simpleList(prefix string, root string, base string, pagenum int, nbperpage 
 
 		stat, _ = os.Stat(fmt.Sprintf("%s/%s", theDir, fileName))
 		modTime := stat.ModTime()
-		tmp := fileInfos{
-			FileName: fileName,
-			Path:     fmt.Sprintf("%s/%s", root, fileName),
-			ModTime:  modTime,
-		}
+		tmp := fileInfos{}
 		if f.IsDir() {
 			tmp.Type = "folder"
 			tmp.Name = tmp.FileName
@@ -220,16 +247,28 @@ func simpleList(prefix string, root string, base string, pagenum int, nbperpage 
 			tmp.NBItems = len(tmpfiles)
 			// tmp.Items = simpleList(prefix, fmt.Sprintf("%s/%s", root, f.Name()), fmt.Sprintf("%s/%s", base, f.Name()))
 		} else {
-			infos := MakePrettyName(fileName)
+			infos, id := MakePrettyName(fileName)
+			if id != 0 {
+				tmp.TMDBID = id
+				renameFile(fmt.Sprintf("%s%s/", prefix, root), fileName, id, infos)
+			}
+			tmp.TMDBID = id
 			tmp.Name = infos["titre"]
 			tmp.Type = "file"
 			tmp.Ext = infos["ext"]
+			if infos["ext"] == "mkv" || infos["ext"] == "avi" {
+				tmp.ImgSmall = fmt.Sprintf("http://%s/art/w185/%s/%s", globalConf.GetHTTPAddr(), infos["titre"], infos["year"])
+				tmp.ImgBig = fmt.Sprintf("http://%s/art/w342/%s/%s", globalConf.GetHTTPAddr(), infos["titre"], infos["year"])
+			}
 			tmp.Year = infos["year"]
 			tmp.Langues = infos["langue"]
 			tmp.Origine = infos["origine"]
 			tmp.Qualite = infos["qualite"]
 			tmp.Size = f.Size()
 		}
+		tmp.FileName = fileName
+		tmp.Path = fmt.Sprintf("%s/%s", root, fileName)
+		tmp.ModTime = modTime
 		zeFilez = append(zeFilez, tmp)
 	}
 
@@ -242,7 +281,9 @@ func simpleList(prefix string, root string, base string, pagenum int, nbperpage 
 	return zeFilez, tmp
 }
 
-func Start(appConf DataSource, root string, orderby string, asc bool, pagenum int, nbperpage int) []byte {
+func Start(appConf DataSource, TMDB *MovieDB.MDB, root string, orderby string, asc bool, pagenum int, nbperpage int) []byte {
+	globalConf = appConf
+	myDB = TMDB
 	base := filepath.Base(root)
 	if pagenum == 0 {
 		pagenum = 1
