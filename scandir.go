@@ -45,7 +45,7 @@ type pagination struct {
 
 type fileInfos struct {
 	FileName      string
-	TMDBID        int
+	TMDBID        string
 	Path          string
 	Name          string
 	Type          string
@@ -121,7 +121,7 @@ func fullList(root string) {
 	fmt.Printf("filepath.Walk() returned %v\n", err)
 }
 
-func MakePrettyName(UglyName string) (map[string]string, int) {
+func MakePrettyName(UglyName string) (map[string]string, string) {
 	regex := regexp.MustCompile(`(?iU)^(.+?)_\((19\d{2}|20(?:0\d|1[0-9]))\)_(multi|vf(?:\w*)|(?:\w*)french)?_(\d+p)?_(bluray|brrip|webrip|hdlight|dvdrip|web-dl|hdrip)?_\[(\d+)?\]\.(mkv|avi|mpe?g|mp4)$`)
 	globalRule := regex.FindStringSubmatch(UglyName)
 
@@ -132,9 +132,9 @@ func MakePrettyName(UglyName string) (map[string]string, int) {
 		results["langue"] = globalRule[3]
 		results["qualite"] = globalRule[4]
 		results["origine"] = globalRule[5]
+		results["tmdbid"] = globalRule[6]
 		results["ext"] = globalRule[7]
-		id, _ := strconv.Atoi(globalRule[6])
-		return results, id
+		return results, ""
 	}
 
 	regex = regexp.MustCompile(`(?iU)^(.+?)[.( _\t](?:19\d{2}|20(?:0\d|1[0-9])).*[.](mkv|avi|mpe?g|mp4)$`)
@@ -194,13 +194,19 @@ func MakePrettyName(UglyName string) (map[string]string, int) {
 
 	id, err := myDB.GetMovieID(results["titre"], results["year"])
 	if err != nil {
-		return nil, 0
+		return nil, ""
+	}
+	dbMovieInfos, err := myDB.GetMovieInfos(id)
+	if err == nil {
+		results["titre"] = dbMovieInfos.Title
+		reldate := strings.Split(dbMovieInfos.ReleaseDate, "-")
+		results["year"] = reldate[0]
 	}
 	return results, id
 }
 
-func renameFile(path string, from string, id int, with map[string]string) {
-	newFileName := fmt.Sprintf("%s_(%s)_%s_%s_%s_[%d].%s", with["titre"], with["year"], with["langue"], with["qualite"], with["origine"], id, with["ext"])
+func renameFile(path string, from string, id string, with map[string]string) {
+	newFileName := fmt.Sprintf("%s_(%s)_%s_%s_%s_[%s].%s", with["titre"], with["year"], with["langue"], with["qualite"], with["origine"], id, with["ext"])
 	clog.Info("scandir", "renameFile", "FROM: %s TO: %s", from, newFileName)
 	os.Rename(fmt.Sprintf("%s%s", path, from), fmt.Sprintf("%s%s", path, newFileName))
 }
@@ -242,23 +248,22 @@ func simpleList(prefix string, root string, base string, pagenum int, nbperpage 
 		tmp := fileInfos{}
 		if f.IsDir() {
 			tmp.Type = "folder"
-			tmp.Name = tmp.FileName
+			tmp.Name = fileName
 			tmpfiles, _ := ioutil.ReadDir(fmt.Sprintf("%s/%s", theDir, fileName))
 			tmp.NBItems = len(tmpfiles)
 			// tmp.Items = simpleList(prefix, fmt.Sprintf("%s/%s", root, f.Name()), fmt.Sprintf("%s/%s", base, f.Name()))
 		} else {
 			infos, id := MakePrettyName(fileName)
-			if id != 0 {
-				tmp.TMDBID = id
+			if id != "" {
+				infos["tmdbid"] = id
 				renameFile(fmt.Sprintf("%s%s/", prefix, root), fileName, id, infos)
 			}
-			tmp.TMDBID = id
+			tmp.TMDBID = infos["tmdbid"]
 			tmp.Name = infos["titre"]
 			tmp.Type = "file"
 			tmp.Ext = infos["ext"]
 			if infos["ext"] == "mkv" || infos["ext"] == "avi" {
 				tmp.ImgSmall = fmt.Sprintf("http://%s/art/w185/%s/%s", globalConf.GetHTTPAddr(), infos["titre"], infos["year"])
-				tmp.ImgBig = fmt.Sprintf("http://%s/art/w342/%s/%s", globalConf.GetHTTPAddr(), infos["titre"], infos["year"])
 			}
 			tmp.Year = infos["year"]
 			tmp.Langues = infos["langue"]
