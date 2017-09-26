@@ -31,20 +31,30 @@ func (i items) String() string {
 	return ret
 }
 
+type pagination struct {
+	totalFiles int
+	totalPages int
+	actualPage int
+	nbPerPage  int
+}
+
 type fileInfos struct {
-	FileName string
-	Path     string
-	Name     string
-	Type     string
-	Ext      string
-	Year     string
-	Langues  string
-	Origine  string
-	Qualite  string
-	Size     int64
-	ModTime  time.Time
-	NBItems  int
-	Items    items
+	FileName      string
+	Path          string
+	Name          string
+	Type          string
+	Ext           string
+	Year          string
+	Langues       string
+	Origine       string
+	Qualite       string
+	Size          int64
+	ModTime       time.Time
+	NBItems       int
+	NBPages       int
+	DisplayedPage int
+	ItemsPerPage  int
+	Items         items
 }
 
 func (f fileInfos) String() string {
@@ -164,7 +174,7 @@ func MakePrettyName(UglyName string) map[string]string {
 	return results
 }
 
-func simpleList(prefix string, root string, base string, pagenum int, nbperpage int) (items, int) {
+func simpleList(prefix string, root string, base string, pagenum int, nbperpage int) (items, pagination) {
 	var stop int
 	var totalFiles int
 
@@ -178,6 +188,9 @@ func simpleList(prefix string, root string, base string, pagenum int, nbperpage 
 
 	var zeFilez items
 
+	if nbperpage == 0 {
+		nbperpage = totalFiles
+	}
 	index := nbperpage * (pagenum - 1)
 	if index+nbperpage > totalFiles {
 		stop = totalFiles
@@ -207,7 +220,6 @@ func simpleList(prefix string, root string, base string, pagenum int, nbperpage 
 			tmp.NBItems = len(tmpfiles)
 			// tmp.Items = simpleList(prefix, fmt.Sprintf("%s/%s", root, f.Name()), fmt.Sprintf("%s/%s", base, f.Name()))
 		} else {
-			clog.Trace("", "", "%s", fileName)
 			infos := MakePrettyName(fileName)
 			tmp.Name = infos["titre"]
 			tmp.Type = "file"
@@ -220,15 +232,24 @@ func simpleList(prefix string, root string, base string, pagenum int, nbperpage 
 		}
 		zeFilez = append(zeFilez, tmp)
 	}
-	return zeFilez, totalFiles
+
+	tmp := pagination{
+		totalFiles: totalFiles,
+		totalPages: totalFiles / nbperpage,
+		actualPage: pagenum,
+		nbPerPage:  nbperpage,
+	}
+	return zeFilez, tmp
 }
 
-func Start(appConf DataSource, root string, orderby string, asc bool) []byte {
-	clog.Info("ScanDir", "Start", "Prefix: %s, Dir: %s, OrderBy: %s (ASC:%b)", appConf.GetPrefixDir(), root, orderby, asc)
+func Start(appConf DataSource, root string, orderby string, asc bool, pagenum int, nbperpage int) []byte {
 	base := filepath.Base(root)
+	if pagenum == 0 {
+		pagenum = 1
+	}
+	list, total := simpleList(appConf.GetPrefixDir(), root, base, pagenum, nbperpage)
 
-	list, total := simpleList(appConf.GetPrefixDir(), root, base, 1, 10)
-
+	clog.Info("ScanDir", "Start", "Prefix: %s, Dir: %s, OrderBy: %s (ASC:%v) Page: %d, NbPP: %d", appConf.GetPrefixDir(), root, orderby, asc, pagenum, nbperpage)
 	switch orderby {
 	case "title":
 		if asc {
@@ -251,12 +272,15 @@ func Start(appConf DataSource, root string, orderby string, asc bool) []byte {
 	}
 
 	rootFiles := fileInfos{
-		FileName: base,
-		Name:     base,
-		Path:     root,
-		Type:     "folder",
-		Items:    list,
-		NBItems:  total,
+		FileName:      base,
+		Name:          base,
+		Path:          root,
+		Type:          "folder",
+		Items:         list,
+		NBItems:       total.totalFiles,
+		NBPages:       total.totalPages,
+		DisplayedPage: total.actualPage,
+		ItemsPerPage:  total.nbPerPage,
 	}
 
 	// json, _ := json.MarshalIndent(rootFiles, "", "    ")
