@@ -15,6 +15,7 @@ import (
 
 	"github.com/Djoulzy/MovieDB"
 	"github.com/Djoulzy/Tools/clog"
+	tmdb "github.com/ryanbradynd05/go-tmdb"
 )
 
 type DataSource interface {
@@ -50,8 +51,7 @@ type fileInfos struct {
 	Name          string
 	Type          string
 	Ext           string
-	ImgSmall      string
-	ImgBig        string
+	ArtworkUrl    string
 	Year          string
 	Langues       string
 	Origine       string
@@ -137,7 +137,7 @@ func MakePrettyName(UglyName string) (map[string]string, string) {
 		return results, ""
 	}
 
-	regex = regexp.MustCompile(`(?iU)^(.+?)[.( _\t](?:19\d{2}|20(?:0\d|1[0-9])).*[.](mkv|avi|mpe?g|mp4)$`)
+	regex = regexp.MustCompile(`(?iU)^(.+?)[. _\-\t][.( _\t](?:19\d{2}|20(?:0\d|1[0-9])).*[.](mkv|avi|mpe?g|mp4)$`)
 	// regex := regexp.MustCompile(`(?iU)^(.+?)[.( \t]*((19\d{2}|20(?:0\d|1[0-9])).*|(?:(?=\d+p|bluray|brrip|webrip|hdlight|dvdrip|web-dl|hdrip)..*)?[.](mkv|avi|mpe?g|mp4)$)`)
 	infosBase := regex.FindStringSubmatch(UglyName)
 	regex = regexp.MustCompile(`(?iU)^(?:.+?)(19\d{2}|20(?:0\d|1[0-9]))(?:.+?)$`)
@@ -194,9 +194,11 @@ func MakePrettyName(UglyName string) (map[string]string, string) {
 
 	id, err := myDB.GetMovieID(results["titre"], results["year"])
 	if err != nil {
-		return nil, ""
+		return results, ""
 	}
-	dbMovieInfos, err := myDB.GetMovieInfos(id)
+	raw, err := myDB.GetMovieInfos(id)
+	var dbMovieInfos = &tmdb.Movie{}
+	err = json.Unmarshal(raw, dbMovieInfos)
 	if err == nil {
 		results["titre"] = dbMovieInfos.Title
 		reldate := strings.Split(dbMovieInfos.ReleaseDate, "-")
@@ -263,7 +265,7 @@ func simpleList(prefix string, root string, base string, pagenum int, nbperpage 
 			tmp.Type = "file"
 			tmp.Ext = infos["ext"]
 			if infos["ext"] == "mkv" || infos["ext"] == "avi" {
-				tmp.ImgSmall = fmt.Sprintf("http://%s/art/w185/%s/%s", globalConf.GetHTTPAddr(), infos["titre"], infos["year"])
+				tmp.ArtworkUrl = fmt.Sprintf("http://%s/art/%s/", globalConf.GetHTTPAddr(), infos["tmdbid"])
 			}
 			tmp.Year = infos["year"]
 			tmp.Langues = infos["langue"]
