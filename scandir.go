@@ -192,7 +192,7 @@ func MakePrettyName(UglyName string) (map[string]string, string) {
 	}
 	results["titre"] = strings.Trim(results["titre"], " ")
 
-	id, err := myDB.GetMovieID(results["titre"], results["year"])
+	id, err := myDB.GetMovieID(strings.ToLower(results["titre"]), results["year"])
 	if err != nil {
 		return results, ""
 	}
