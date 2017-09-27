@@ -264,7 +264,7 @@ func simpleList(prefix string, root string, base string, pagenum int, nbperpage 
 			tmp.Name = infos["titre"]
 			tmp.Type = "file"
 			tmp.Ext = infos["ext"]
-			if infos["ext"] == "mkv" || infos["ext"] == "avi" {
+			if infos["ext"] == "mkv" || infos["ext"] == "avi" || infos["ext"] == "mp4" {
 				tmp.ArtworkUrl = fmt.Sprintf("http://%s/art/%s/", globalConf.GetHTTPAddr(), infos["tmdbid"])
 			}
 			tmp.Year = infos["year"]
