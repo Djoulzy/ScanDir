@@ -137,7 +137,7 @@ func isPrettyName(UglyName string) (map[string]string, bool) {
 		results["ext"] = globalRule[7]
 		return results, true
 	} else {
-		regex = regexp.MustCompile(`(?iU)^(.+)[.( _\t]+(?:19\d{2}|20(?:0\d|1[0-9])).*[.](mkv|avi|mpe?g|mp4)$`)
+		regex = regexp.MustCompile(`(?iU)^(.+)[.( _\t]+(?:19\d{2}|20(?:0\d|1[0-9])).*[.](.+)$`)
 		// regex := regexp.MustCompile(`(?iU)^(.+?)[.( \t]*((19\d{2}|20(?:0\d|1[0-9])).*|(?:(?=\d+p|bluray|brrip|webrip|hdlight|dvdrip|web-dl|hdrip)..*)?[.](mkv|avi|mpe?g|mp4)$)`)
 		infosBase := regex.FindStringSubmatch(UglyName)
 		regex = regexp.MustCompile(`(?iU)^(?:.+?)(19\d{2}|20(?:0\d|1[0-9]))(?:.+?)$`)
