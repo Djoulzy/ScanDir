@@ -222,6 +222,8 @@ func makeCorrectFileList(theDir string) ([]os.FileInfo, error) {
 		return nil, err
 	}
 
+	doTMDBCheck := strings.Contains(theDir, "FILM")
+
 	var tmp []os.FileInfo
 	for _, f := range files {
 		fileName := f.Name()
@@ -231,11 +233,13 @@ func makeCorrectFileList(theDir string) ([]os.FileInfo, error) {
 
 		if !f.IsDir() {
 			newInfos := f
-			infos, ok := isPrettyName(fileName)
-			if !ok {
-				newf, err := renameFile(theDir, fileName, infos)
-				if err == nil {
-					newInfos = newf
+			if doTMDBCheck {
+				infos, ok := isPrettyName(fileName)
+				if !ok {
+					newf, err := renameFile(theDir, fileName, infos)
+					if err == nil {
+						newInfos = newf
+					}
 				}
 			}
 			tmp = append(tmp, newInfos)
@@ -257,7 +261,6 @@ func simpleList(prefix string, root string, base string) items {
 	var zeFilez items
 	for _, f := range files {
 		fileName := f.Name()
-		clog.Trace("", "", "%s", filepath.Ext(fileName))
 		stat, _ = os.Stat(fmt.Sprintf("%s/%s", theDir, fileName))
 		modTime := stat.ModTime()
 		tmp := fileInfos{}
