@@ -311,25 +311,24 @@ func Start(appConf DataSource, TMDB *MovieDB.MDB, root string, orderby string, a
 		stop = len(list)
 	}
 
-	var finalList = list[index:stop]
 	switch orderby {
 	case "title":
 		if asc {
-			sort.Sort(ByTitle(finalList))
+			sort.Sort(ByTitle(list))
 		} else {
-			sort.Sort(sort.Reverse(ByTitle(finalList)))
+			sort.Sort(sort.Reverse(ByTitle(list)))
 		}
 	case "date":
 		if asc {
-			sort.Sort(ByDate(finalList))
+			sort.Sort(ByDate(list))
 		} else {
-			sort.Sort(sort.Reverse(ByDate(finalList)))
+			sort.Sort(sort.Reverse(ByDate(list)))
 		}
 	case "year":
 		if asc {
-			sort.Sort(ByYear(finalList))
+			sort.Sort(ByYear(list))
 		} else {
-			sort.Sort(sort.Reverse(ByYear(finalList)))
+			sort.Sort(sort.Reverse(ByYear(list)))
 		}
 	}
 
@@ -338,7 +337,7 @@ func Start(appConf DataSource, TMDB *MovieDB.MDB, root string, orderby string, a
 		Name:          base,
 		Path:          root,
 		Type:          "folder",
-		Items:         finalList,
+		Items:         list[index:stop],
 		NBItems:       len(list),
 		NBPages:       len(list) / nbperpage,
 		DisplayedPage: pagenum,
