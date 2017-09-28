@@ -225,7 +225,7 @@ func makeCorrectFileList(theDir string) ([]os.FileInfo, error) {
 	var tmp []os.FileInfo
 	for _, f := range files {
 		fileName := f.Name()
-		if filepath.HasPrefix(fileName, ".") || filepath.HasPrefix(fileName, "@") || filepath.HasPrefix(fileName, "_") || filepath.HasPrefix(fileName, "thumbs") {
+		if filepath.HasPrefix(fileName, ".") || filepath.HasPrefix(fileName, "@") || filepath.HasPrefix(fileName, "_") || filepath.HasPrefix(fileName, "thumbs") || (filepath.Ext(fileName) == ".part") {
 			continue
 		}
 
@@ -257,7 +257,7 @@ func simpleList(prefix string, root string, base string) items {
 	var zeFilez items
 	for _, f := range files {
 		fileName := f.Name()
-
+		clog.Trace("", "", "%s", filepath.Ext(fileName))
 		stat, _ = os.Stat(fmt.Sprintf("%s/%s", theDir, fileName))
 		modTime := stat.ModTime()
 		tmp := fileInfos{}
