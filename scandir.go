@@ -155,7 +155,7 @@ func isPrettyName(UglyName string) (map[string]string, bool) {
 		} else {
 			infosBase := strings.Split(UglyName, ".")
 			results["titre"] = infosBase[0]
-			results["ext"] = strings.ToLower(UglyName)
+			results["ext"] = filepath.Ext(UglyName)
 			if len(results["ext"]) > 0 {
 				results["ext"] = strings.ToLower(results["ext"][1:])
 			}
