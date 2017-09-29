@@ -151,11 +151,11 @@ func isPrettyName(UglyName string) (map[string]string, bool) {
 
 		if len(infosBase) > 2 {
 			results["titre"] = infosBase[1]
-			results["ext"] = infosBase[2]
+			results["ext"] = strings.ToLower(infosBase[2])
 		} else {
 			infosBase := strings.Split(UglyName, ".")
 			results["titre"] = infosBase[0]
-			results["ext"] = filepath.Ext(UglyName)
+			results["ext"] = strings.ToLower(filepath.Ext(UglyName)[1:])
 		}
 		if len(year) == 2 {
 			results["year"] = year[1]
@@ -222,7 +222,7 @@ func makeCorrectFileList(theDir string) ([]os.FileInfo, error) {
 		return nil, err
 	}
 
-	doTMDBCheck := strings.Contains(theDir, "FILM")
+	doTMDBCheck := strings.Contains(theDir, "FILM") || strings.Contains(theDir, "ANIME")
 
 	var tmp []os.FileInfo
 	for _, f := range files {
@@ -261,13 +261,14 @@ func simpleList(prefix string, root string, base string) items {
 	var zeFilez items
 	for _, f := range files {
 		fileName := f.Name()
-		stat, _ = os.Stat(fmt.Sprintf("%s/%s", theDir, fileName))
+		fileFullPath := fmt.Sprintf("%s%s", theDir, fileName)
+		stat, _ = os.Stat(fileFullPath)
 		modTime := stat.ModTime()
 		tmp := fileInfos{}
 		if f.IsDir() {
 			tmp.Type = "folder"
 			tmp.Name = fileName
-			tmpfiles, _ := ioutil.ReadDir(fmt.Sprintf("%s/%s", theDir, fileName))
+			tmpfiles, _ := ioutil.ReadDir(fileFullPath)
 			tmp.NBItems = len(tmpfiles)
 			// tmp.Items = simpleList(prefix, fmt.Sprintf("%s/%s", root, f.Name()), fmt.Sprintf("%s/%s", base, f.Name()))
 		} else {
@@ -276,8 +277,19 @@ func simpleList(prefix string, root string, base string) items {
 			tmp.Name = infos["titre"]
 			tmp.Type = "file"
 			tmp.Ext = infos["ext"]
-			if infos["ext"] == "mkv" || infos["ext"] == "avi" || infos["ext"] == "mp4" {
-				tmp.ArtworkUrl = fmt.Sprintf("http://%s/art/%s/", globalConf.GetHTTPAddr(), infos["tmdbid"])
+			switch infos["ext"] {
+			case "mkv":
+				fallthrough
+			case "avi":
+				fallthrough
+			case "mp4":
+				tmp.ArtworkUrl = fmt.Sprintf("http://%s/art/%s/w185", globalConf.GetHTTPAddr(), infos["tmdbid"])
+			case "epub":
+				tmp.ArtworkUrl = fmt.Sprintf("http://%s/ico/epub.png", globalConf.GetHTTPAddr())
+			case "jpg":
+				tmp.ArtworkUrl = fmt.Sprintf("http://%s/static%s", globalConf.GetHTTPAddr(), fileFullPath)
+			default:
+				tmp.ArtworkUrl = fmt.Sprintf("http://%s/ico/default.png", globalConf.GetHTTPAddr())
 			}
 			tmp.Year = infos["year"]
 			tmp.Langues = infos["langue"]
