@@ -123,7 +123,7 @@ func fullList(root string) {
 }
 
 func isPrettyName(UglyName string) (map[string]string, bool) {
-	regex := regexp.MustCompile(`(?iU)^(.+?)_\((19\d{2}|20(?:0\d|1[0-9]))\)_(multi-vf[f|q]|vf[f|q]|(?:\w*)french)?_(\d+p)?_(bluray|brrip|webrip|hdlight|dvdrip|web-dl|hdrip)?_\[(\d+)?\]\.(mkv|avi|mpe?g|mp4)$`)
+	regex := regexp.MustCompile(`(?iU)^(.+?)_\((19\d{2}|20(?:0\d|1[0-9]))\)_(multi(?:-vf[f|q])?|vf(?:[f|q])?|(?:\w*)french)?_(\d+p)?_(bluray|brrip|webrip|hdlight|dvdrip|web-dl|hdrip)?_\[(\d+)?\]\.(mkv|avi|mpe?g|mp4)$`)
 	globalRule := regex.FindStringSubmatch(UglyName)
 
 	results := make(map[string]string)
@@ -146,7 +146,7 @@ func isPrettyName(UglyName string) (map[string]string, bool) {
 		origine := regex.FindStringSubmatch(UglyName)
 		regex = regexp.MustCompile(`(?iU)^(?:.+?)(?:[^\d](\d+p)[^p])(?:.*?)$`)
 		qualite := regex.FindStringSubmatch(UglyName)
-		regex = regexp.MustCompile(`(?i)^(?:.+?)(multi-vf[f|q]|vf[f|q]|(?:\w*)french)(?:.+?)$`)
+		regex = regexp.MustCompile(`(?i)^(?:.+?)(multi(?:-vf[f|q])?|vf(?:[f|q])?|(?:\w*)french)(?:.+?)$`)
 		langue := regex.FindStringSubmatch(UglyName)
 
 		if len(infosBase) > 2 {
