@@ -146,7 +146,7 @@ func isPrettyName(UglyName string) (map[string]string, bool) {
 		origine := regex.FindStringSubmatch(UglyName)
 		regex = regexp.MustCompile(`(?iU)^(?:.+?)(?:[^\d](\d+p)[^p])(?:.*?)$`)
 		qualite := regex.FindStringSubmatch(UglyName)
-		regex = regexp.MustCompile(`(?iU)^(?:.+?)(multi|vf(?:\w*)|(?:\w*)french)(?:.+?)$`)
+		regex = regexp.MustCompile(`(?i)^(?:.+?)(multi-vf[f|q]|vf[f|q]|(?:\w*)french)(?:.+?)$`)
 		langue := regex.FindStringSubmatch(UglyName)
 
 		if len(infosBase) > 2 {
