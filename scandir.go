@@ -123,7 +123,7 @@ func fullList(root string) {
 }
 
 func isPrettyName(UglyName string) (map[string]string, bool) {
-	regex := regexp.MustCompile(`(?iU)^(.+?)_\((19\d{2}|20(?:0\d|1[0-9]))\)_(multi(?:-vf[f|q])?|vf(?:[f|q])?|(?:\w*)french)?_(\d+p)?_(bluray|brrip|webrip|hdlight|dvdrip|web-dl|hdrip)?_\[(\d+)?\]\.(mkv|avi|mpe?g|mp4)$`)
+	regex := regexp.MustCompile(`(?iU)^([^_(]+?)_+\((19\d{2}|20(?:0\d|1[0-9]))\)_+(multi(?:-vf[f|q])?|vf(?:[f|q])?|(?:[a-z]*)french)?_+(\d+p)?_+(bluray|brrip|webrip|hdlight|dvdrip|web-dl|hdrip)?_+\[(\d+)?\]\.(mkv|avi|mpe?g|mp4)$`)
 	globalRule := regex.FindStringSubmatch(UglyName)
 
 	results := make(map[string]string)
@@ -149,17 +149,17 @@ func isPrettyName(UglyName string) (map[string]string, bool) {
 		regex = regexp.MustCompile(`(?i)^(?:.+?)(multi(?:-vf[f|q])?|vf(?:[f|q])?|(?:\w*)french)(?:.+?)$`)
 		langue := regex.FindStringSubmatch(UglyName)
 
-		if len(infosBase) > 2 {
+		if len(infosBase) >= 2 {
 			results["titre"] = infosBase[1]
-			results["ext"] = strings.ToLower(infosBase[2])
 		} else {
 			infosBase := strings.Split(UglyName, ".")
 			results["titre"] = infosBase[0]
-			results["ext"] = filepath.Ext(UglyName)
-			if len(results["ext"]) > 0 {
-				results["ext"] = strings.ToLower(results["ext"][1:])
-			}
 		}
+		results["ext"] = filepath.Ext(UglyName)
+		if len(results["ext"]) > 0 {
+			results["ext"] = strings.ToLower(results["ext"][1:])
+		}
+
 		if len(year) == 2 {
 			results["year"] = year[1]
 		}
