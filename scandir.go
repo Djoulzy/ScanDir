@@ -123,7 +123,7 @@ func fullList(root string) {
 }
 
 func isPrettyName(UglyName string) (map[string]string, bool) {
-	regex := regexp.MustCompile(`(?iU)^([^_(]+?)_+\((19\d{2}|20(?:0\d|1[0-9]))\)_+(multi(?:-vf[f|q])?|vf(?:[f|q])?|(?:[a-z]*)french)?_+(\d+p)?_+(bluray|brrip|webrip|hdlight|dvdrip|web-dl|hdrip)?_+\[(\d+)?\]\.(mkv|avi|mpe?g|mp4)$`)
+	regex := regexp.MustCompile(`(?iU)^([^_]+?)_+\((19\d{2}|20(?:0\d|1[0-9]))\)_+(multi(?:-vf[f|q])?|vf(?:[f|q])?|(?:[a-z]*)french)?_+(\d+p)?_+(bluray|brrip|webrip|hdlight|dvdrip|web-dl|hdrip)?_+\[(\d+)?\]\.(mkv|avi|mpe?g|mp4)$`)
 	globalRule := regex.FindStringSubmatch(UglyName)
 
 	results := make(map[string]string)
