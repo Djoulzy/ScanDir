@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -357,7 +358,7 @@ func Start(appConf DataSource, TMDB *MovieDB.MDB, root string, orderby string, a
 		Type:          "folder",
 		Items:         list[index:stop],
 		NBItems:       len(list),
-		NBPages:       len(list) / nbperpage,
+		NBPages:       int(math.Ceil(float64(len(list)) / float64(nbperpage))),
 		DisplayedPage: pagenum,
 		ItemsPerPage:  nbperpage,
 	}
